@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Queue Check System</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .icon { display: inline-block; margin-right: 8px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+```
+<script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // SVG Icons as inline components
+    const SearchIcon = () => <i className="fas fa-search"></i>;
+    const LogOutIcon = () => <i className="fas fa-sign-out-alt"></i>;
+    const LogInIcon = () => <i className="fas fa-sign-in-alt"></i>;
+    const PlusIcon = () => <i className="fas fa-plus"></i>;
+    const EditIcon = () => <i className="fas fa-edit"></i>;
+    const TrashIcon = () => <i className="fas fa-trash"></i>;
+    const AlertIcon = () => <i className="fas fa-exclamation-circle"></i>;
+
+    const OrderQueueSystem = () => {
+        // Sample data
+        const [orders, setOrders] = useState([
+            {
+                id: 'A100',
+                queueNumber: 1,
+                customerName: 'คุณสมชาย',
+                phone: '0812345678',
+                email: 'somchai@email.com',
+                lineId: 'somchai_line',
+                facebookName: 'Somchai Phadung',
+                jobDescription: 'โลโก้ร้านค้าออนไลน์',
+                receivedDate: '2026-02-15',
+                status: 'completed',
+                progress: 100,
+                lastUpdate: '2026-03-08',
+                updateMessage: 'งานเสร็จสิ้นแล้ว ส่งไฟล์ให้ลูกค้าแล้ว',
+            },
+            {
+                id: 'A101',
+                queueNumber: 2,
+                customerName: 'คุณนารีย์',
+                phone: '0898765432',
+                email: 'naree@email.com',
+                lineId: 'naree2025',
+                facebookName: 'Naree Sooksomboon',
+                jobDescription: 'ปรับปรุงเว็บไซต์เดิม',
+                receivedDate: '2026-02-20',
+                status: 'in-progress',
+                progress: 75,
+                lastUpdate: '2026-03-09',
+                updateMessage: 'ติดตั้งระบบการชำระเงินเสร็จแล้ว กำลังทดสอบ',
+            },
+            {
+                id: 'A102',
+                queueNumber: 3,
+                customerName: 'คุณแนน',
+                phone: '0867543210',
+                email: 'nann@email.com',
+                lineId: 'nann_design',
+                facebookName: 'Nann Design Studio',
+                jobDescription: 'เว็บไซต์ร้านค้าออนไลน์แบบสมบูรณ์',
+                receivedDate: '2026-02-28',
+                status: 'in-progress',
+                progress: 60,
+                lastUpdate: '2026-03-09',
+                updateMessage: 'กำลังออกแบบหน้าแรกของเว็บไซต์ คาดว่าจะเสร็จภายใน 2 วัน',
+            },
+            {
+                id: 'A103',
+                queueNumber: 4,
+                customerName: 'คุณวิชัย',
+                phone: '0876543210',
+                email: 'vichai@email.com',
+                lineId: 'vichai_coffee',
+                facebookName: 'Vichai Coffee Shop',
+                jobDescription: 'ระบบจองโต๊ะ เมนูออนไลน์',
+                receivedDate: '2026-03-05',
+                status: 'not-started',
+                progress: 0,
+                lastUpdate: '2026-03-05',
+                updateMessage: 'รับออเดอร์แล้ว อยู่ในคิวรอเริ่มงาน',
+            },
+            {
+                id: 'A104',
+                queueNumber: 5,
+                customerName: 'คุณอนุชา',
+                phone: '0845678910',
+                email: 'anucha@email.com',
+                lineId: 'anucha_shop',
+                facebookName: 'Anucha Shop',
+                jobDescription: 'ออกแบบแคตตาล็อก PDF',
+                receivedDate: '2026-03-08',
+                status: 'waiting',
+                progress: 30,
+                lastUpdate: '2026-03-08',
+                updateMessage: 'กำลังสืบค้นข้อมูลสินค้าจากลูกค้า',
+            },
+        ]);
+
+        const [isAdminLogin, setIsAdminLogin] = useState(false);
+        const [adminPassword, setAdminPassword] = useState('');
+        const [currentPage, setCurrentPage] = useState('search');
+        const [searchQuery, setSearchQuery] = useState('');
+        const [searchResults, setSearchResults] = useState([]);
+        const [selectedOrder, setSelectedOrder] = useState(null);
+        const [editingOrder, setEditingOrder] = useState(null);
+        const [showNewOrderForm, setShowNewOrderForm] = useState(false);
+
+        const statusLabels = {
+            'not-started': 'รอเริ่มงาน',
+            'waiting': 'ส่วนไปของงาน',
+            'in-progress': 'กำลังดำเนินการ',
+            'near-completion': 'ใกล้เสร็จ',
+            'completed': 'เสร็จแล้ว',
+            'sent': 'ส่งงานแล้ว',
+        };
+
+        const statusColors = {
+            'not-started': 'bg-gray-100 text-gray-800',
+            'waiting': 'bg-blue-100 text-blue-800',
+            'in-progress': 'bg-yellow-100 text-yellow-800',
+            'near-completion': 'bg-orange-100 text-orange-800',
+            'completed': 'bg-green-100 text-green-800',
+            'sent': 'bg-green-200 text-green-900',
+        };
+
+        const handleSearch = (e) => {
+            e.preventDefault();
+            const query = searchQuery.toLowerCase().trim();
+            if (!query) {
+                setSearchResults([]);
+                return;
+            }
+
+            const results = orders.filter(order => 
+                order.id.toLowerCase().includes(query) ||
+                order.customerName.toLowerCase().includes(query) ||
+                order.lineId.toLowerCase().includes(query) ||
+                order.facebookName.toLowerCase().includes(query) ||
+                order.queueNumber.toString().includes(query)
+            );
+
+            setSearchResults(results);
+        };
+
+        const handleAdminLogin = (e) => {
+            e.preventDefault();
+            if (adminPassword === 'admin123') {
+                setIsAdminLogin(true);
+                setCurrentPage('admin');
+                setAdminPassword('');
+            } else {
+                alert('รหัสผ่านไม่ถูกต้อง');
+            }
+        };
+
+        const handleLogout = () => {
+            setIsAdminLogin(false);
+            setCurrentPage('search');
+            setSelectedOrder(null);
+            setEditingOrder(null);
+        };
+
+        const handleSaveOrder = (updatedOrder) => {
+            if (updatedOrder.id) {
+                setOrders(orders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+            } else {
+                const newId = `A${100 + orders.length + 1}`;
+                const newOrder = { ...updatedOrder, id: newId, queueNumber: orders.length + 1 };
+                setOrders([...orders, newOrder]);
+            }
+            setEditingOrder(null);
+            setShowNewOrderForm(false);
+        };
+
+        const handleDeleteOrder = (orderId) => {
+            if (confirm('ยืนยันการลบออเดอร์นี้?')) {
+                setOrders(orders.filter(o => o.id !== orderId));
+            }
+        };
+
+        // CUSTOMER SEARCH PAGE
+        if (!isAdminLogin && currentPage === 'search') {
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-8 px-4">
+                    {/* Header */}
+                    <div className="max-w-2xl mx-auto mb-8">
+                        <div className="text-center">
+                            <h1 className="text-4xl font-bold text-slate-900 mb-2">Queue Check System</h1>
+                            <p className="text-slate-600">ตรวจสอบสถานะงานของคุณ</p>
+                        </div>
+                    </div>
+
+                    <div className="max-w-2xl mx-auto">
+                        {/* Search Section */}
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 mb-8">
+                            <h2 className="text-2xl font-semibold text-slate-900 mb-6">ค้นหาออเดอร์ของคุณ</h2>
+                            <form onSubmit={handleSearch} className="space-y-4">
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="พิมพ์เลขออเดอร์ / ชื่อลูกค้า / LINE ID"
+                                        className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-200 flex items-center justify-center gap-2"
+                                >
+                                    <SearchIcon />
+                                    ค้นหา
+                                </button>
+                            </form>
+
+                            {/* Admin Button */}
+                            <button
+                                onClick={() => setCurrentPage('login')}
+                                className="w-full mt-4 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2 rounded-lg transition duration-200 text-sm"
+                            >
+                                เข้าสู่ระบบแอดมิน
+                            </button>
+                        </div>
+
+                        {/* Search Results */}
+                        {searchResults.length > 0 && (
+                            <div className="space-y-4">
+                                {searchResults.map(order => (
+                                    <div
+                                        key={order.id}
+                                        onClick={() => setSelectedOrder(order)}
+                                        className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-md transition duration-200"
+                                    >
+                                        <div className="flex justify-between items-start mb-3">
+                                            <h3 className="text-xl font-bold text-slate-900">Order #{order.id}</h3>
+                                            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${statusColors[order.status]}`}>
+                                                {statusLabels[order.status]}
+                                            </span>
+                                        </div>
+                                        <p className="text-slate-600 mb-2">คิวที่: <span className="font-semibold">{order.queueNumber}</span></p>
+                                        <p className="text-slate-600 mb-2">ชื่อลูกค้า: <span className="font-semibold">{order.customerName}</span></p>
+                                        <p className="text-slate-600 mb-4">งาน: <span className="font-semibold">{order.jobDescription}</span></p>
+                                        
+                                        {/* Progress Bar */}
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-slate-600">ความคืบหน้า</span>
+                                                <span className="font-semibold text-blue-600">{order.progress}%</span>
+                                            </div>
+                                            <div className="w-full bg-slate-200 rounded-full h-2">
+                                                <div
+                                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                                    style={{ width: `${order.progress}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* No Results Message */}
+                        {searchQuery && searchResults.length === 0 && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 text-center">
+                                <AlertIcon className="w-8 h-8 text-blue-600 mx-auto mb-2" style={{fontSize: '2em'}} />
+                                <p className="text-slate-700">ไม่พบออเดอร์ที่ตรงกับการค้นหา</p>
+                                <p className="text-sm text-slate-600 mt-1">กรุณาลองใหม่ด้วยข้อมูลอื่น</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Detail Modal */}
+                    {selectedOrder && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                            <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                                <div className="p-8">
+                                    <div className="flex justify-between items-start mb-6">
+                                        <h2 className="text-3xl font-bold text-slate-900">Order #{selectedOrder.id}</h2>
+                                        <button
+                                            onClick={() => setSelectedOrder(null)}
+                                            className="text-slate-400 hover:text-slate-600 text-2xl"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+
+                                    {/* Customer Info */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 pb-8 border-b border-slate-200">
+                                        <div>
+                                            <h3 className="text-sm font-semibold text-slate-600 uppercase mb-1">ชื่อลูกค้า</h3>
+                                            <p className="text-lg font-semibold text-slate-900">{selectedOrder.customerName}</p>
+                                        </div>
+                                        <div>
+                                            <h3 className="text-sm font-semibold text-slate-600 uppercase mb-1">เลขคิว</h3>
+                                            <p className="text-lg font-semibold text-slate-900">#{selectedOrder.queueNumber}</p>
+                                        </div>
+                                        <div>
+                                            <h3 className="text-sm font-semibold text-slate-600 uppercase mb-1">LINE ID</h3>
+                                            <p className="text-slate-700">{selectedOrder.lineId}</p>
+                                        </div>
+                                        <div>
+                                            <h3 className="text-sm font-semibold text-slate-600 uppercase mb-1">Facebook</h3>
+                                            <p className="text-slate-700">{selectedOrder.facebookName}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Job Details */}
+                                    <div className="mb-8 pb-8 border-b border-slate-200">
+                                        <h3 className="text-sm font-semibold text-slate-600 uppercase mb-2">รายละเอียดงาน</h3>
+                                        <p className="text-lg font-semibold text-slate-900 mb-3">{selectedOrder.jobDescription}</p>
+                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                            <div>
+                                                <span className="text-slate-600">วันที่รับงาน:</span>
+                                                <p className="font-semibold text-slate-900">{new Date(selectedOrder.receivedDate).toLocaleDateString('th-TH')}</p>
+                                            </div>
+                                            <div>
+                                                <span className="text-slate-600">สถานะ:</span>
+                                                <p className={`font-semibold inline-block mt-1 px-3 py-1 rounded-full ${statusColors[selectedOrder.status]}`}>
+                                                    {statusLabels[selectedOrder.status]}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Progress */}
+                                    <div className="mb-8 pb-8 border-b border-slate-200">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <h3 className="text-sm font-semibold text-slate-600 uppercase">ความคืบหน้า</h3>
+                                            <span className="text-2xl font-bold text-blue-600">{selectedOrder.progress}%</span>
+                                        </div>
+                                        <div className="w-full bg-slate-200 rounded-full h-3">
+                                            <div
+                                                className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-300"
+                                                style={{ width: `${selectedOrder.progress}%` }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Update Message */}
+                                    <div className="mb-6">
+                                        <h3 className="text-sm font-semibold text-slate-600 uppercase mb-2">อัปเดตล่าสุด</h3>
+                                        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                                            <p className="text-slate-700 mb-2">{selectedOrder.updateMessage}</p>
+                                            <p className="text-sm text-slate-500">
+                                                {new Date(selectedOrder.lastUpdate).toLocaleDateString('th-TH', {
+                                                    year: 'numeric',
+                                                    month: 'long',
+                                                    day: 'numeric'
+                                                })}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Contact Section */}
+                                    <div className="bg-slate-50 p-6 rounded-lg">
+                                        <p className="text-slate-700 font-semibold mb-4">ติดต่อแอดมิน</p>
+                                        <div className="flex gap-3">
+                                            <a
+                                                href={`https://line.me/ti/p/${selectedOrder.lineId}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 rounded-lg transition duration-200 text-center"
+                                            >
+                                                ติดต่อ LINE
+                                            </a>
+                                            <a
+                                                href={`https://www.facebook.com/search/top/?q=${encodeURIComponent(selectedOrder.facebookName)}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition duration-200 text-center"
+                                            >
+                                                ติดต่อ Facebook
+                                            </a>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => setSelectedOrder(null)}
+                                        className="w-full mt-6 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-3 rounded-lg transition duration-200"
+                                    >
+                                        ปิด
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // LOGIN PAGE
+        if (!isAdminLogin && currentPage === 'login') {
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
+                        <div className="text-center mb-8">
+                            <h1 className="text-3xl font-bold text-slate-900">Admin Login</h1>
+                            <p className="text-slate-600 mt-2">เข้าสู่ระบบจัดการออเดอร์</p>
+                        </div>
+
+                        <form onSubmit={handleAdminLogin} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">รหัสผ่าน</label>
+                                <input
+                                    type="password"
+                                    value={adminPassword}
+                                    onChange={(e) => setAdminPassword(e.target.value)}
+                                    placeholder="กรุณากรอกรหัสผ่าน"
+                                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <p className="text-xs text-slate-500 mt-1">※ รหัสผ่านคือ: admin123</p>
+                            </div>
+
+                            <button
+                                type="submit"
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-200 flex items-center justify-center gap-2"
+                            >
+                                <LogInIcon />
+                                เข้าสู่ระบบ
+                            </button>
+                        </form>
+
+                        <button
+                            onClick={() => setCurrentPage('search')}
+                            className="w-full mt-4 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2 rounded-lg transition duration-200"
+                        >
+                            กลับไป
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        // ADMIN DASHBOARD
+        if (isAdminLogin) {
+            return (
+                <div className="min-h-screen bg-slate-900 text-white">
+                    {/* Header */}
+                    <div className="bg-slate-800 border-b border-slate-700 sticky top-0 z-40">
+                        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+                            <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+                            <button
+                                onClick={handleLogout}
+                                className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition duration-200"
+                            >
+                                <LogOutIcon />
+                                ออกจากระบบ
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="max-w-7xl mx-auto p-4">
+                        {/* Summary Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+                                <p className="text-slate-400 text-sm mb-1">ทั้งหมด</p>
+                                <p className="text-3xl font-bold">{orders.length}</p>
+                            </div>
+                            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+                                <p className="text-slate-400 text-sm mb-1">กำลังดำเนินการ</p>
+                                <p className="text-3xl font-bold text-yellow-400">{orders.filter(o => o.status === 'in-progress').length}</p>
+                            </div>
+                            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+                                <p className="text-slate-400 text-sm mb-1">เสร็จแล้ว</p>
+                                <p className="text-3xl font-bold text-green-400">{orders.filter(o => o.status === 'completed').length}</p>
+                            </div>
+                            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+                                <p className="text-slate-400 text-sm mb-1">รอเริ่มงาน</p>
+                                <p className="text-3xl font-bold text-blue-400">{orders.filter(o => o.status === 'not-started').length}</p>
+                            </div>
+                        </div>
+
+                        {/* Add New Order Button */}
+                        <div className="mb-8">
+                            <button
+                                onClick={() => {
+                                    setShowNewOrderForm(!showNewOrderForm);
+                                    setEditingOrder(null);
+                                }}
+                                className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition duration-200"
+                            >
+                                <PlusIcon />
+                                เพิ่มออเดอร์ใหม่
+                            </button>
+                        </div>
+
+                        {/* New Order Form */}
+                        {showNewOrderForm && (
+                            <OrderForm
+                                order={null}
+                                statusLabels={statusLabels}
+                                onSave={handleSaveOrder}
+                                onCancel={() => setShowNewOrderForm(false)}
+                            />
+                        )}
+
+                        {/* Orders List */}
+                        <div className="space-y-4">
+                            {orders.map(order => (
+                                <div
+                                    key={order.id}
+                                    className="bg-slate-800 rounded-lg border border-slate-700 p-6 hover:border-slate-600 transition duration-200"
+                                >
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <h3 className="text-xl font-bold mb-1">Order #{order.id}</h3>
+                                            <p className="text-slate-400">{order.customerName} • {order.jobDescription}</p>
+                                        </div>
+                                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${statusColors[order.status]}`}>
+                                            {statusLabels[order.status]}
+                                        </span>
+                                    </div>
+
+                                    {/* Progress Bar */}
+                                    <div className="mb-4">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="text-slate-400 text-sm">ความคืบหน้า</span>
+                                            <span className="text-blue-400 font-semibold">{order.progress}%</span>
+                                        </div>
+                                        <div className="w-full bg-slate-700 rounded-full h-2">
+                                            <div
+                                                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                                                style={{ width: `${order.progress}%` }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Update Message */}
+                                    <div className="bg-slate-700 rounded p-3 mb-4 text-sm">
+                                        <p className="text-slate-300">{order.updateMessage}</p>
+                                        <p className="text-slate-500 text-xs mt-1">
+                                            {new Date(order.lastUpdate).toLocaleDateString('th-TH')}
+                                        </p>
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setEditingOrder(order)}
+                                            className="flex-1 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded font-semibold text-sm flex items-center justify-center gap-1 transition duration-200"
+                                        >
+                                            <EditIcon />
+                                            แก้ไข
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteOrder(order.id)}
+                                            className="flex-1 bg-red-600 hover:bg-red-700 px-4 py-2 rounded font-semibold text-sm flex items-center justify-center gap-1 transition duration-200"
+                                        >
+                                            <TrashIcon />
+                                            ลบ
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Edit Modal */}
+                        {editingOrder && (
+                            <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
+                                <div className="bg-slate-800 rounded-lg border border-slate-700 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                                    <OrderForm
+                                        order={editingOrder}
+                                        statusLabels={statusLabels}
+                                        onSave={handleSaveOrder}
+                                        onCancel={() => setEditingOrder(null)}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+    };
+
+    // Order Edit/Create Form Component
+    const OrderForm = ({ order, statusLabels, onSave, onCancel }) => {
+        const [formData, setFormData] = React.useState(order || {
+            queueNumber: 0,
+            customerName: '',
+            phone: '',
+            email: '',
+            lineId: '',
+            facebookName: '',
+            jobDescription: '',
+            receivedDate: new Date().toISOString().split('T')[0],
+            status: 'not-started',
+            progress: 0,
+            updateMessage: '',
+            lastUpdate: new Date().toISOString().split('T')[0],
+        });
+
+        const statusOptions = [
+            'not-started',
+            'waiting',
+            'in-progress',
+            'near-completion',
+            'completed',
+            'sent',
+        ];
+
+        const handleSubmit = (e) => {
+            e.preventDefault();
+            onSave(formData);
+        };
+
+        return (
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                <h2 className="text-2xl font-bold text-white">
+                    {order ? `แก้ไข Order #${order.id}` : 'เพิ่มออเดอร์ใหม่'}
+                </h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-300 mb-2">ชื่อลูกค้า *</label>
+                        <input
+                            type="text"
+                            required
+                            value={formData.customerName}
+                            onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
+                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-300 mb-2">LINE ID</label>
+                        <input
+                            type="text"
+                            value={formData.lineId}
+                            onChange={(e) => setFormData({ ...formData, lineId: e.target.value })}
+                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-300 mb-2">Facebook</label>
+                        <input
+                            type="text"
+                            value={formData.facebookName}
+                            onChange={(e) => setFormData({ ...formData, facebookName: e.target.value })}
+                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-300 mb-2">เบอร์โทรศัพท์</label>
+                        <input
+                            type="text"
+                            value={formData.phone}
+                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-2">รายละเอียดงาน *</label>
+                    <textarea
+                        required
+                        value={formData.jobDescription}
+                        onChange={(e) => setFormData({ ...formData, jobDescription: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white focus:outline-none focus:ring-2 focus:ring-blue-500 h-24"
+                    />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-300 mb-2">วันที่รับงาน</label>
+                        <input
+                            type="date"
+                            value={formData.receivedDate}
+                            onChange={(e) => setFormData({ ...formData, receivedDate: e.target.value })}
+                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-300 mb-2">สถานะ</label>
+                        <select
+                            value={formData.status}
+                            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            {statusOptions.map(status => (
+                                <option key={status} value={status}>
+                                    {statusLabels[status]}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-2">ความคืบหน้า ({formData.progress}%)</label>
+                    <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="5"
+                        value={formData.progress}
+                        onChange={(e) => setFormData({ ...formData, progress: parseInt(e.target.value) })}
+                        className="w-full"
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-2">ข้อความอัปเดต</label>
+                    <textarea
+                        value={formData.updateMessage}
+                        onChange={(e) => setFormData({ ...formData, updateMessage: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white focus:outline-none focus:ring-2 focus:ring-blue-500 h-20"
+                        placeholder="เขียนข้อความอัปเดตให้ลูกค้าเห็น"
+                    />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                    <button
+                        type="submit"
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition duration-200"
+                    >
+                        บันทึก
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 rounded-lg transition duration-200"
+                    >
+                        ยกเลิก
+                    </button>
+                </div>
+            </form>
+        );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<OrderQueueSystem />);
+</script>
+```
+
+</body>
+</html>
